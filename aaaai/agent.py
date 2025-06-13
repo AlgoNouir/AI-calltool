@@ -49,21 +49,9 @@ class Agent:
         self.baseUrl = baseUrl
         self.maxRetray = maxRetray
 
-        ignoreFuncs = ["message", "select"]
-
-        self.tools = {
-            tool: langToolDecorator(self.__getattribute__(tool))
-            for tool in self.__dir__()
-            if (
-                tool.strip("_") == tool
-                and tool not in self.__dict__.keys()
-                and tool not in ignoreFuncs
-            )
-        }
-
         # generate tools from method
-        if len(self.tools):
-            rendered_tools_text = render_text_description(self.tools.values()).replace(
+        if len(self._tools):
+            rendered_tools_text = render_text_description(self._tools.values()).replace(
                 "\n", "\n\t"
             )
             self.system_prompt += toolsPrompt.format(rendered_tools=rendered_tools_text)
@@ -84,10 +72,23 @@ class Agent:
 
         # set tools of chain in agent
         self.chain = prompt | llm
-        if len(self.tools):
+        if len(self._tools):
             self.chain = self.chain | JsonOutputParser() | self._invoke_tool
 
     # -------------------------------------------------------- MAIN FUNCTIONS
+
+    @property
+    def _tools(self):
+        ignoreFuncs = ["message", "select"]
+        return {
+            tool: langToolDecorator(self.__getattribute__(tool))
+            for tool in self.__dir__()
+            if (
+                tool.strip("_") == tool
+                and tool not in self.__dict__.keys()
+                and tool not in ignoreFuncs
+            )
+        }
 
     def _invoke_tool(
         self,
@@ -108,7 +109,7 @@ class Agent:
         """
         name = tool_call_request["name"]
 
-        for funcName, requested_tool in self.tools.items():
+        for funcName, requested_tool in self._tools.items():
             if funcName in name:
                 break
         else:
