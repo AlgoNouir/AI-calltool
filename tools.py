@@ -1,22 +1,17 @@
 from aaaai.agent import Agent
+from aaaai.orchestra import Orchestration
 
 
-class TestAgent(Agent):
-    def say_hello(self, person_name: str) -> str:
-        """this function say hello to smoeone
-
-        Args:
-            person_name (str): target name
-
-        Returns:
-            str: what you need say
-        """
-
-        return f"Hi {person_name}!"
+a = Agent("this is a simple person number 1", "gemma3:12b")
+b = Agent("this is a simple person number 2", "gemma3:12b")
+c = Agent("this is a simple person number 3", "gemma3:12b")
 
 
-a = TestAgent("your name is Nora", "gemma3:12b")
+orch = Orchestration("gemma3:12b")
+
+orch.register(a)
+orch.register(b)
+orch.register(c)
 
 
-response = a.message("say hello to ali")
-print(response)
+print(orch.invoke("who is person 1?"))

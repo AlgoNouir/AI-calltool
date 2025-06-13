@@ -75,20 +75,33 @@ class Agent:
         if len(self._tools):
             self.chain = self.chain | JsonOutputParser() | self._invoke_tool
 
+    def __hash__(self):
+        return hash(self.system_prompt)
+
     # -------------------------------------------------------- MAIN FUNCTIONS
 
     @property
+    def _ignoreFuncs(self):
+        return ["message", "select"]
+
+    @property
     def _tools(self):
-        ignoreFuncs = ["message", "select"]
-        return {
-            tool: langToolDecorator(self.__getattribute__(tool))
-            for tool in self.__dir__()
+        result = {}
+        for tool in self.__dir__():
+            # filter data
             if (
-                tool.strip("_") == tool
-                and tool not in self.__dict__.keys()
-                and tool not in ignoreFuncs
-            )
-        }
+                tool.strip("_") != tool
+                or tool in self.__dict__.keys()
+                or tool in self._ignoreFuncs
+            ):
+                continue
+
+            result[tool] = langToolDecorator(self.__getattribute__(tool))
+
+        return result
+
+    def _descibe_yourself(self):
+        return f"i am AI agent with below prompt:{self.system_prompt}"
 
     def _invoke_tool(
         self,
@@ -122,11 +135,23 @@ class Agent:
     def message(self, message):
         return self.chain.invoke({"question": message})
 
-    def select(self, text: str, options: list[str], freq=0, think=False):
+    def select(
+        self, text: str, options: list[str] | dict[str, str], freq=0, think=False
+    ):
         """Choose exactly one of the options based on the text."""
+
+        # create options from dict
+        if isinstance(options, dict):
+            # add options desc to text
+            text += "options desciption: " + ", ".join(
+                [f"{k} -> {v}" for k, v in options.items()]
+            )
+            options = ", ".join([str(k) for k in options.keys()])
+        else:
+            options = ", ".join(options)
+
         # create prompt and
-        question = f"text: {text} | plan: Choose exactly one of the options based on the text. | options : {', '.join(options)} "
-        print(question)
+        question = f"text: {text} | plan: Choose exactly one of the options based on the text. | options : {options} "
         response = self.chain.invoke({"question": question})
 
         # check exact option
